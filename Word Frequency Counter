@@ -1,0 +1,124 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX_WORD_LENGTH 50
+#define HASH_SIZE 100
+#define HEAP_SIZE 100
+
+typedef struct Node {
+    char word[MAX_WORD_LENGTH];
+    int count;
+    struct Node *next;
+} Node;
+
+typedef struct HeapNode {
+    char word[MAX_WORD_LENGTH];
+    int count;
+} HeapNode;
+
+Node *hashTable[HASH_SIZE];
+
+HeapNode heap[HEAP_SIZE];
+int heapSize = 0;
+
+unsigned int hash(const char *word) {
+    unsigned int hashValue = 0;
+    for (int i = 0; word[i] != '\0'; i++) {
+        hashValue = 31 * hashValue + word[i];
+    }
+    return hashValue % HASH_SIZE;
+}
+
+Node *createNode(const char *word) {
+    Node *newNode = (Node *)malloc(sizeof(Node));
+    if (newNode == NULL) {
+        printf("Memory allocation failed!\n");
+        exit(1);
+    }
+    strcpy(newNode->word, word);
+    newNode->count = 1;
+    newNode->next = NULL;
+    return newNode;
+}
+
+void insertWord(const char *word) {
+    unsigned int index = hash(word);
+    Node *list = hashTable[index];
+    Node *temp = list;
+    while (temp) {
+        if (strcmp(temp->word, word) == 0) {
+            temp->count++;
+            return;
+        }
+        temp = temp->next;
+    }
+    Node *newNode = createNode(word);
+    newNode->next = list;
+    hashTable[index] = newNode;
+}
+
+void heapifyDown(int index) {
+    int smallest = index;
+    int left = 2 * index + 1;
+    int right = 2 * index + 2;
+
+    if (left < heapSize && heap[left].count < heap[smallest].count)
+        smallest = left;
+    if (right < heapSize && heap[right].count < heap[smallest].count)
+        smallest = right;
+
+    if (smallest != index) {
+        HeapNode temp = heap[index];
+        heap[index] = heap[smallest];
+        heap[smallest] = temp;
+        heapifyDown(smallest);
+    }
+}
+
+void insertHeap(const char *word, int count) {
+    if (heapSize < HEAP_SIZE) {
+        heap[heapSize].count = count;
+        strcpy(heap[heapSize].word, word);
+        heapSize++;
+    } else if (count > heap[0].count) {
+        heap[0].count = count;
+        strcpy(heap[0].word, word);
+        heapifyDown(0);
+    }
+}
+
+void buildHeap() {
+    for (int i = 0; i < HASH_SIZE; i++) {
+        Node *temp = hashTable[i];
+        while (temp) {
+            insertHeap(temp->word, temp->count);
+            temp = temp->next;
+        }
+    }
+}
+
+void printHeap() {
+    printf("\nWord Frequencies:\n");
+    for (int i = 0; i < heapSize; i++) {
+        printf("%s: %d\n", heap[i].word, heap[i].count);
+    }
+}
+
+int main() {
+    char buffer[] = "Hello world! This is a test. Hello again. Test world.";
+
+    for (int i = 0; buffer[i]; i++) buffer[i] = tolower(buffer[i]);
+
+    char *word = strtok(buffer, " ,.-\n");
+    while (word != NULL) {
+        insertWord(word);
+        word = strtok(NULL, " ,.-\n");
+    }
+
+    buildHeap();
+    printHeap();
+
+    return 0;
+}
